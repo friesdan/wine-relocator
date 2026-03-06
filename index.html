@@ -116,12 +116,40 @@
         <div class="flex justify-between items-center mb-3">
           <div class="flex items-center gap-3">
             <h1 class="text-lg font-bold text-white">🍷 Wine Relocator</h1>
-            <span id="header-move-info" class="text-purple-300 text-sm"></span>
+            <button onclick="showTripEditor()" class="text-purple-300 hover:text-white text-sm flex items-center gap-1 transition-colors">
+              <span id="header-move-info"></span>
+              <span class="text-xs">✏️</span>
+            </button>
             <span id="header-distance" class="text-slate-400 text-xs"></span>
           </div>
-          <button onclick="location.reload()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm">
-            ← Start Over
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="switchAccount()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm transition-colors">
+              Switch Account
+            </button>
+            <button onclick="location.reload()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm">
+              ← Start Over
+            </button>
+          </div>
+        </div>
+        
+        <!-- Inline Trip Editor (hidden by default) -->
+        <div id="trip-editor" class="hidden mb-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+          <div class="flex items-center gap-3">
+            <div class="flex-1 grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-400 text-xs mb-1">From</label>
+                <input type="text" id="edit-from" class="w-full px-3 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-purple-400">
+              </div>
+              <div>
+                <label class="block text-slate-400 text-xs mb-1">To</label>
+                <input type="text" id="edit-to" class="w-full px-3 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-purple-400">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="saveTripEdit()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-sm">Save</button>
+              <button onclick="cancelTripEdit()" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-500 text-white rounded text-sm">Cancel</button>
+            </div>
+          </div>
         </div>
         
         <!-- Row 1: Category counts -->
@@ -813,6 +841,47 @@ function showApp() {
   updateMinValueLabel();
   recalculate();
   updateTransportCost();
+}
+
+// ─── Trip Editor ────────────────────────────────────────────────
+function showTripEditor() {
+  document.getElementById('edit-from').value = moveFrom;
+  document.getElementById('edit-to').value = moveTo;
+  document.getElementById('trip-editor').classList.remove('hidden');
+}
+
+function cancelTripEdit() {
+  document.getElementById('trip-editor').classList.add('hidden');
+}
+
+function saveTripEdit() {
+  moveFrom = document.getElementById('edit-from').value || 'Origin';
+  moveTo = document.getElementById('edit-to').value || 'Destination';
+  
+  // Update header display
+  document.getElementById('header-move-info').textContent = `${moveFrom} → ${moveTo}`;
+  document.getElementById('header-distance').textContent = `(~${estimateDistance()} miles)`;
+  
+  // Recalculate transport costs with new distance
+  updateTransportCost();
+  updateNetCost();
+  
+  // Hide editor
+  document.getElementById('trip-editor').classList.add('hidden');
+}
+
+function switchAccount() {
+  // Preserve trip settings in the import form
+  document.getElementById('move-from').value = moveFrom;
+  document.getElementById('move-to').value = moveTo;
+  
+  // Show import section, hide app
+  document.getElementById('import-section').classList.remove('hidden');
+  document.getElementById('app-section').classList.add('hidden');
+  
+  // Clear wine data (will be replaced by new import)
+  wines = [];
+  categorized = { keep: [], sell: [], give: [] };
 }
 
 // ─── Build Regional Sliders ─────────────────────────────────────
