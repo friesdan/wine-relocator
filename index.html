@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wine Relocator — Moving Your Wine Collection</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .glassmorphism { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
+    .loading { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+  
+  <!-- Landing / Import Section -->
+  <div id="import-section" class="min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-lg w-full">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">🍷 Wine Relocator</h1>
+        <p class="text-xl text-purple-200">Moving? Decide what to transport, sell, or give away.</p>
+      </div>
+      
+      <div class="glassmorphism rounded-2xl p-8 border border-white/20">
+        
+        <!-- Tab Buttons -->
+        <div class="flex mb-6 bg-black/20 rounded-lg p-1">
+          <button id="tab-ct" onclick="switchImportTab('cellartracker')" class="flex-1 py-2 px-4 rounded-md text-sm font-medium bg-purple-600 text-white">
+            CellarTracker
+          </button>
+          <button id="tab-csv" onclick="switchImportTab('csv')" class="flex-1 py-2 px-4 rounded-md text-sm font-medium text-purple-300 hover:text-white">
+            Upload CSV
+          </button>
+        </div>
+        
+        <!-- CellarTracker Login -->
+        <div id="panel-cellartracker">
+          <div class="flex items-center gap-2 mb-4">
+            <img src="https://www.cellartracker.com/favicon.ico" class="w-5 h-5" alt="">
+            <span class="text-white font-medium">Connect to CellarTracker</span>
+          </div>
+          
+          <form id="ct-form" onsubmit="fetchCellarTracker(event)" class="space-y-4">
+            <div>
+              <label class="block text-purple-300 text-sm mb-1">Username / Handle</label>
+              <input type="text" id="ct-username" required 
+                class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-400 focus:outline-none focus:border-purple-400"
+                placeholder="Your CellarTracker handle">
+            </div>
+            <div>
+              <label class="block text-purple-300 text-sm mb-1">Password</label>
+              <input type="password" id="ct-password" required 
+                class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-400 focus:outline-none focus:border-purple-400"
+                placeholder="Your CellarTracker password">
+            </div>
+            <button type="submit" id="ct-submit" class="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors">
+              Import My Cellar
+            </button>
+          </form>
+          
+          <div id="ct-error" class="hidden mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm"></div>
+          <div id="ct-loading" class="hidden mt-4 text-center text-purple-300 loading">
+            <span class="text-2xl">🍷</span> Fetching your cellar...
+          </div>
+          
+          <p class="text-xs text-purple-400 mt-4 text-center">
+            Your credentials are sent directly to CellarTracker. We don't store them.
+          </p>
+        </div>
+        
+        <!-- CSV Upload -->
+        <div id="panel-csv" class="hidden">
+          <div id="drop-zone" class="border-2 border-dashed border-white/30 rounded-xl p-8 text-center hover:border-purple-400 hover:bg-purple-500/10 transition-all cursor-pointer">
+            <input type="file" id="file-input" accept=".csv,.txt,.tsv" class="hidden">
+            <div class="text-4xl mb-3">📁</div>
+            <p class="text-white font-medium mb-1">Drop your CSV file here</p>
+            <p class="text-sm text-purple-300">or click to browse</p>
+            <p class="text-xs text-purple-400 mt-3">Supports CellarTracker, Vivino, and generic CSV formats</p>
+          </div>
+        </div>
+        
+        <!-- Demo Mode -->
+        <div class="mt-6 pt-6 border-t border-white/10 text-center">
+          <button onclick="loadDemoData()" class="text-purple-300 hover:text-white text-sm">
+            Just exploring? <span class="underline">Try with demo data →</span>
+          </button>
+        </div>
+      </div>
+      
+      <p class="text-center text-purple-400 text-sm mt-6">
+        Your data stays in your browser. Nothing is stored on our servers.
+      </p>
+    </div>
+  </div>
+  
+  <!-- Main App Section (hidden until data loaded) -->
+  <div id="app-section" class="hidden">
+    <!-- Will be populated with the main app UI -->
+  </div>
+
+<script>
+// Wine data storage
+let wines = [];
+let categorized = { keep: [], sell: [], give: [] };
+
+// Tab switching
+function switchImportTab(tab) {
+  document.getElementById('panel-cellartracker').classList.toggle('hidden', tab !== 'cellartracker');
+  document.getElementById('panel-csv').classList.toggle('hidden', tab !== 'csv');
+  document.getElementById('tab-ct').className = `flex-1 py-2 px-4 rounded-md text-sm font-medium ${tab === 'cellartracker' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:text-white'}`;
+  document.getElementById('tab-csv').className = `flex-1 py-2 px-4 rounded-md text-sm font-medium ${tab === 'csv' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:text-white'}`;
+}
+
+// CellarTracker fetch
+async function fetchCellarTracker(e) {
+  e.preventDefault();
+  
+  const username = document.getElementById('ct-username').value.trim();
+  const password = document.getElementById('ct-password').value;
+  const errorEl = document.getElementById('ct-error');
+  const loadingEl = document.getElementById('ct-loading');
+  const submitBtn = document.getElementById('ct-submit');
+  
+  errorEl.classList.add('hidden');
+  loadingEl.classList.remove('hidden');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Importing...';
+  
+  try {
+    const response = await fetch('/cellartracker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const result = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    
+    wines = parseTabData(result.data);
+    
+    if (wines.length === 0) {
+      throw new Error('No wines found in your cellar. Make sure you have wines added to CellarTracker.');
+    }
+    
+    showApp();
+    
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    loadingEl.classList.add('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Import My Cellar';
+  }
+}
+
+// Parse CellarTracker tab-delimited data
+function parseTabData(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split('\t').map(h => h.toLowerCase().trim());
+  
+  // Find column indices
+  const cols = {
+    wine: findCol(headers, ['wine', 'winename']),
+    vintage: findCol(headers, ['vintage']),
+    locale: findCol(headers, ['locale', 'region', 'appellation']),
+    country: findCol(headers, ['country']),
+    varietal: findCol(headers, ['varietal', 'mastervariety', 'variety']),
+    color: findCol(headers, ['color', 'type']),
+    category: findCol(headers, ['category']),
+    score: findCol(headers, ['ct', 'score', 'my score']),
+    price: findCol(headers, ['price', 'valuation', 'avgprice']),
+    quantity: findCol(headers, ['quantity', 'pending']),
+    location: findCol(headers, ['location']),
+    bin: findCol(headers, ['bin']),
+    size: findCol(headers, ['size']),
+    beginConsume: findCol(headers, ['beginconsume', 'begin']),
+    endConsume: findCol(headers, ['endconsume', 'end']),
+  };
+  
+  const result = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = lines[i].split('\t');
+    
+    const wine = {
+      name: getVal(values, cols.wine) || 'Unknown',
+      vintage: getVal(values, cols.vintage) || '',
+      region: getVal(values, cols.locale) || getVal(values, cols.country) || 'Unknown',
+      country: getVal(values, cols.country) || '',
+      variety: getVal(values, cols.varietal) || '',
+      type: getVal(values, cols.color) || getVal(values, cols.category) || '',
+      score: parseFloat(getVal(values, cols.score)) || 0,
+      price: parseFloat(String(getVal(values, cols.price)).replace(/[$,]/g, '')) || 0,
+      quantity: parseInt(getVal(values, cols.quantity)) || 1,
+      location: [getVal(values, cols.location), getVal(values, cols.bin)].filter(Boolean).join(' / '),
+      size: getVal(values, cols.size) || '750ml',
+      drinkBegin: getVal(values, cols.beginConsume) || '',
+      drinkEnd: getVal(values, cols.endConsume) || ''
+    };
+    
+    if (wine.name && wine.name !== 'Unknown') {
+      result.push(wine);
+    }
+  }
+  
+  return result;
+}
+
+// File handling
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone?.addEventListener('click', () => fileInput.click());
+dropZone?.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-purple-400', 'bg-purple-500/10'); });
+dropZone?.addEventListener('dragleave', () => dropZone.classList.remove('border-purple-400', 'bg-purple-500/10'));
+dropZone?.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('border-purple-400', 'bg-purple-500/10');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput?.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    // Try tab-delimited first (CellarTracker), then CSV
+    wines = text.includes('\t') ? parseTabData(text) : parseCSV(text);
+    if (wines.length > 0) {
+      showApp();
+    } else {
+      alert('Could not parse any wines from the file. Please check the format.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+  
+  const colMap = {
+    wine: findCol(headers, ['wine', 'wine name', 'name', 'winename']),
+    vintage: findCol(headers, ['vintage', 'year']),
+    region: findCol(headers, ['region', 'appellation', 'locale']),
+    country: findCol(headers, ['country']),
+    variety: findCol(headers, ['varietal', 'variety', 'grape']),
+    score: findCol(headers, ['score', 'ct', 'rating', 'points']),
+    price: findCol(headers, ['price', 'cost', 'valuation', 'value']),
+    quantity: findCol(headers, ['quantity', 'qty', 'bottles']),
+  };
+  
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseCSVLine(lines[i]);
+    
+    const wine = {
+      name: getVal(values, colMap.wine) || 'Unknown Wine',
+      vintage: getVal(values, colMap.vintage) || '',
+      region: getVal(values, colMap.region) || getVal(values, colMap.country) || 'Unknown',
+      variety: getVal(values, colMap.variety) || '',
+      score: parseFloat(getVal(values, colMap.score)) || 0,
+      price: parseFloat(String(getVal(values, colMap.price)).replace(/[$,]/g, '')) || 0,
+      quantity: parseInt(getVal(values, colMap.quantity)) || 1,
+    };
+    
+    if (wine.name && wine.name !== 'Unknown Wine') {
+      result.push(wine);
+    }
+  }
+  
+  return result;
+}
+
+function findCol(headers, names) {
+  for (const name of names) {
+    const idx = headers.findIndex(h => h.includes(name));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function getVal(values, idx) {
+  return idx >= 0 && idx < values.length ? values[idx]?.trim() || '' : '';
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result.map(s => s.replace(/^"|"$/g, ''));
+}
+
+function loadDemoData() {
+  wines = [
+    { name: "Château Margaux", vintage: "2015", region: "Bordeaux", variety: "Cabernet Sauvignon", score: 97, price: 850, quantity: 2, drinkBegin: "2025", drinkEnd: "2050" },
+    { name: "Opus One", vintage: "2018", region: "California", variety: "Cabernet Sauvignon", score: 95, price: 400, quantity: 3, drinkBegin: "2023", drinkEnd: "2040" },
+    { name: "Dom Pérignon", vintage: "2012", region: "Champagne", variety: "Chardonnay/Pinot Noir", score: 96, price: 200, quantity: 6, drinkBegin: "2022", drinkEnd: "2035" },
+    { name: "Penfolds Grange", vintage: "2017", region: "South Australia", variety: "Shiraz", score: 98, price: 750, quantity: 1, drinkBegin: "2027", drinkEnd: "2060" },
+    { name: "Cloudy Bay Sauvignon Blanc", vintage: "2022", region: "New Zealand", variety: "Sauvignon Blanc", score: 89, price: 25, quantity: 12, drinkBegin: "2023", drinkEnd: "2025" },
+    { name: "Caymus Cabernet", vintage: "2019", region: "California", variety: "Cabernet Sauvignon", score: 91, price: 90, quantity: 4, drinkBegin: "2024", drinkEnd: "2035" },
+    { name: "La Crema Pinot Noir", vintage: "2020", region: "California", variety: "Pinot Noir", score: 88, price: 22, quantity: 6, drinkBegin: "2022", drinkEnd: "2028" },
+    { name: "Whispering Angel Rosé", vintage: "2023", region: "Provence", variety: "Grenache", score: 87, price: 20, quantity: 4, drinkBegin: "2023", drinkEnd: "2025" },
+    { name: "Barolo Giacomo Conterno", vintage: "2016", region: "Piedmont", variety: "Nebbiolo", score: 96, price: 300, quantity: 2, drinkBegin: "2026", drinkEnd: "2050" },
+    { name: "Yellow Tail Shiraz", vintage: "2022", region: "Australia", variety: "Shiraz", score: 82, price: 8, quantity: 3, drinkBegin: "2022", drinkEnd: "2024" },
+  ];
+  showApp();
+}
+
+function showApp() {
+  document.getElementById('import-section').classList.add('hidden');
+  document.getElementById('app-section').classList.remove('hidden');
+  renderApp();
+}
+
+function renderApp() {
+  const totalBottles = wines.reduce((s, w) => s + (w.quantity || 1), 0);
+  const totalValue = wines.reduce((s, w) => s + (w.price || 0) * (w.quantity || 1), 0);
+  const avgScore = wines.length > 0 ? (wines.reduce((s, w) => s + (w.score || 0), 0) / wines.length).toFixed(1) : 0;
+  
+  // Group by region
+  const byRegion = {};
+  wines.forEach(w => {
+    const r = w.region || 'Unknown';
+    if (!byRegion[r]) byRegion[r] = { count: 0, bottles: 0, value: 0 };
+    byRegion[r].count++;
+    byRegion[r].bottles += w.quantity || 1;
+    byRegion[r].value += (w.price || 0) * (w.quantity || 1);
+  });
+  const topRegions = Object.entries(byRegion).sort((a, b) => b[1].bottles - a[1].bottles).slice(0, 8);
+  
+  document.getElementById('app-section').innerHTML = `
+    <div class="max-w-6xl mx-auto p-4">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-white">🍷 Wine Relocator</h1>
+          <p class="text-purple-300">${wines.length} wines · ${totalBottles} bottles · $${Math.round(totalValue).toLocaleString()} value</p>
+        </div>
+        <button onclick="location.reload()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm">
+          ← Start Over
+        </button>
+      </div>
+      
+      <!-- Stats Summary -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="glassmorphism rounded-xl p-4 border border-white/20">
+          <div class="text-purple-300 text-sm">Total Wines</div>
+          <div class="text-2xl font-bold text-white">${wines.length}</div>
+        </div>
+        <div class="glassmorphism rounded-xl p-4 border border-white/20">
+          <div class="text-purple-300 text-sm">Total Bottles</div>
+          <div class="text-2xl font-bold text-white">${totalBottles}</div>
+        </div>
+        <div class="glassmorphism rounded-xl p-4 border border-white/20">
+          <div class="text-purple-300 text-sm">Collection Value</div>
+          <div class="text-2xl font-bold text-white">$${Math.round(totalValue).toLocaleString()}</div>
+        </div>
+        <div class="glassmorphism rounded-xl p-4 border border-white/20">
+          <div class="text-purple-300 text-sm">Average Score</div>
+          <div class="text-2xl font-bold text-white">${avgScore} pts</div>
+        </div>
+      </div>
+      
+      <!-- Region Breakdown -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">📍 By Region</h2>
+        <div class="grid md:grid-cols-2 gap-2">
+          ${topRegions.map(([region, data]) => `
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span class="font-medium">${region}</span>
+              <span class="text-sm text-gray-600">${data.bottles} btl · $${Math.round(data.value).toLocaleString()}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      
+      <!-- Wine List Preview -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">🍷 Your Collection</h2>
+        <div class="max-h-96 overflow-y-auto space-y-2">
+          ${wines.slice(0, 50).map(w => `
+            <div class="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+              <div>
+                <div class="font-medium">${w.vintage} ${w.name}</div>
+                <div class="text-sm text-gray-500">${w.region} · ${w.variety || w.type || 'Wine'}</div>
+              </div>
+              <div class="text-right">
+                <div class="font-medium">${w.score ? w.score + ' pts' : ''}</div>
+                <div class="text-sm text-gray-500">$${w.price || 0} × ${w.quantity || 1}</div>
+              </div>
+            </div>
+          `).join('')}
+          ${wines.length > 50 ? `<div class="text-center text-gray-500 py-2">+ ${wines.length - 50} more wines...</div>` : ''}
+        </div>
+      </div>
+      
+      <!-- Coming Soon -->
+      <div class="glassmorphism rounded-xl p-8 border border-white/20 text-center">
+        <div class="text-4xl mb-4">🚧</div>
+        <h3 class="text-xl font-bold text-white mb-2">Decision Tools Coming Soon</h3>
+        <p class="text-purple-300 mb-4">Score thresholds, transport calculator, sell/give recommendations, and export tools.</p>
+        <p class="text-sm text-purple-400">Data imported successfully! Full decision engine coming next.</p>
+      </div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
