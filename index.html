@@ -590,6 +590,15 @@ async function fetchCellarTracker(e) {
   }
 }
 
+// ─── Extract concise region from full locale path ──────────────
+// "USA, California, Sonoma County, Moon Mountain District" → "Moon Mountain District"
+function getConciseRegion(locale) {
+  if (!locale) return 'Other';
+  const parts = locale.split(',').map(s => s.trim()).filter(Boolean);
+  // Return the most specific (last) part
+  return parts[parts.length - 1] || locale;
+}
+
 // ─── Parse CellarTracker Tab Data ───────────────────────────────
 function parseTabData(text) {
   const lines = text.trim().split('\n');
@@ -1095,7 +1104,7 @@ function renderLists() {
         <div class="flex justify-between items-start">
           <div class="flex-1">
             <div class="font-medium text-sm">${drinkBadge} ${w.vintage || ''} ${w.name}</div>
-            <div class="text-xs text-gray-500">${w.region || getRegion(w)} · ${w.variety || ''}</div>
+            <div class="text-xs text-gray-500">${getConciseRegion(w.region)} · ${w.variety || ''}</div>
             <div class="text-xs text-${color}-600 mt-1">${(w._reasons || []).join(', ')}</div>
           </div>
           <div class="text-right text-xs">
