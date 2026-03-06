@@ -236,11 +236,11 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Sell threshold: <span id="sell-label" class="font-bold">$20</span></label>
             <div class="flex gap-3 mb-2 text-xs">
               <label class="flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="sell-mode" value="value" checked onchange="updateSellLabel(); recalculate()">
+                <input type="radio" name="sell-mode" value="value" checked onchange="onSellModeChange()">
                 <span>By Value</span>
               </label>
               <label class="flex items-center gap-1 cursor-pointer">
-                <input type="radio" name="sell-mode" value="net" onchange="updateSellLabel(); recalculate()">
+                <input type="radio" name="sell-mode" value="net" onchange="onSellModeChange()">
                 <span>By Net Income</span>
               </label>
             </div>
@@ -1208,6 +1208,50 @@ function updateSellLabel() {
 
 function getSellMode() {
   return document.querySelector('input[name="sell-mode"]:checked')?.value || 'value';
+}
+
+// When toggling sell mode, preserve giveaway count by adjusting slider
+function onSellModeChange() {
+  // Capture current giveaway count before mode change takes effect
+  const currentGiveCount = categorized.give.reduce((s, w) => s + getBottleCount(w), 0);
+  
+  // Update labels for new mode
+  updateSellLabel();
+  
+  // If no wines loaded yet, just recalculate normally
+  if (!wines || wines.length === 0) {
+    recalculate();
+    return;
+  }
+  
+  // Binary search for slider value that preserves giveaway count
+  const slider = document.getElementById('sell-threshold');
+  const min = parseInt(slider.min);
+  const max = parseInt(slider.max);
+  
+  // Try each slider value and find best match
+  let bestVal = parseInt(slider.value);
+  let bestDiff = Infinity;
+  
+  for (let val = min; val <= max; val++) {
+    slider.value = val;
+    recalculate();
+    const newGiveCount = categorized.give.reduce((s, w) => s + getBottleCount(w), 0);
+    const diff = Math.abs(newGiveCount - currentGiveCount);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestVal = val;
+    }
+    // Perfect match — stop early
+    if (diff === 0) break;
+  }
+  
+  // Set to best value and do final recalculate
+  slider.value = bestVal;
+  updateSellLabel();
+  recalculate();
+  
+  console.log(`Mode changed. Preserved ~${currentGiveCount} giveaway bottles (found: ${categorized.give.reduce((s, w) => s + getBottleCount(w), 0)} at $${bestVal})`);
 }
 
 function getExpectedNetIncome(wine) {
