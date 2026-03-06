@@ -1001,21 +1001,26 @@ function renderLists() {
     const colors = { keep: 'green', sell: 'amber', give: 'indigo' };
     const color = colors[cat];
     
-    document.getElementById(cat + '-list').innerHTML = wines.map(w => `
-      <div class="p-3 bg-gray-50 rounded-lg border-l-4 border-${color}-400">
+    document.getElementById(cat + '-list').innerHTML = wines.map(w => {
+      const drinkStatus = getDrinkingStatus(w);
+      const drinkBadge = drinkStatus === 'past' ? '<span class="text-red-500" title="Past drinking window">⚠️</span>' :
+                         drinkStatus === 'peak' ? '<span class="text-green-500" title="Peak drinking window">🎯</span>' : '';
+      const score = w.score ? w.score.toFixed(1) : '—';
+      return `
+      <div class="p-2 bg-gray-50 rounded border-l-4 border-${color}-400">
         <div class="flex justify-between items-start">
-          <div>
-            <div class="font-medium text-gray-900">${w.vintage || ''} ${w.name}</div>
-            <div class="text-sm text-gray-500">${getRegion(w)} · ${w.variety || 'Wine'}</div>
+          <div class="flex-1">
+            <div class="font-medium text-sm">${drinkBadge} ${w.vintage || ''} ${w.name}</div>
+            <div class="text-xs text-gray-500">${w.region || getRegion(w)} · ${w.variety || ''}</div>
             <div class="text-xs text-${color}-600 mt-1">${(w._reasons || []).join(', ')}</div>
           </div>
-          <div class="text-right">
-            <div class="font-medium">${w.score ? w.score + ' pts' : ''}</div>
-            <div class="text-sm text-gray-600">$${getValue(w)} × ${getBottleCount(w)}</div>
+          <div class="text-right text-xs">
+            <div class="font-bold">${score} pts</div>
+            <div class="text-gray-600">$${getValue(w).toFixed(0)} × ${getBottleCount(w)}</div>
           </div>
         </div>
-      </div>
-    `).join('') || '<p class="text-gray-400 text-center py-8">No wines in this category</p>';
+      </div>`;
+    }).join('') || '<p class="text-gray-400 text-center py-8">No wines in this category</p>';
   });
 }
 
