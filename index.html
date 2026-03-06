@@ -967,38 +967,90 @@ function recalculate() {
     const value = getValue(w);
     const score = w.score || 0;
     const region = getRegion(w);
-    const threshold = thresholds[region] || thresholds['Other'] || 91;
+    const regionThreshold = thresholds[region] || thresholds['Other'] || 91;
     const vintage = parseInt(w.vintage) || 2020;
-    const age = 2025 - vintage;
+    const age = 2026 - vintage;
+    const drinkStatus = getDrinkingStatus(w);
+    const bottles = getBottleCount(w);
+    const mode = getSellMode();
     
-    let category = 'give';
     let reasons = [];
+    let category;
     
-    // Check overrides first
+    // Force KEEP rules (overrides)
     if (keep96 && score >= 96) {
-      category = 'keep';
       reasons.push('96+ pts');
-    } else if (keepAged && age >= 15) {
-      category = 'keep';
+      w._reasons = reasons;
+      categorized.keep.push(w);
+      return;
+    }
+    if (keepAged && age >= 15) {
       reasons.push('15+ yrs');
-    } else if (score >= threshold && value >= minValue) {
-      category = 'keep';
-      reasons.push(`${threshold}+ pts, $${minValue}+ value`);
-    } else if (meetsSellThreshold(w, sellThreshold)) {
-      category = 'sell';
-      const mode = getSellMode();
-      if (mode === 'net') {
-        reasons.push(`~$${Math.round(getExpectedNetIncome(w))} net`);
-      } else {
-        reasons.push(`$${value} value`);
+      w._reasons = reasons;
+      categorized.keep.push(w);
+      return;
+    }
+    
+    // Past prime handling
+    if (drinkStatus === 'past') {
+      const yearsPast = 2026 - parseInt(w.drinkEnd || 2026);
+      reasons.push(`Past prime${yearsPast > 0 ? ' -' + yearsPast : ''}`);
+      // Decide sell vs give based on value
+      if (meetsSellThreshold(w, sellThreshold)) {
+        if (mode === 'net') reasons.push(`~$${Math.round(getExpectedNetIncome(w))} net`);
+        w._reasons = reasons;
+        categorized.sell.push(w);
+        return;
       }
+      w._reasons = reasons;
+      categorized.give.push(w);
+      return;
+    }
+    
+    // Calculate keep score
+    let keepScore = 0;
+    
+    // Score meets regional threshold
+    if (score >= regionThreshold) {
+      keepScore += 30;
+      reasons.push(`${score.toFixed(0)}≥${regionThreshold}`);
+    }
+    
+    // Value meets minimum
+    if (value >= minValue) {
+      keepScore += 20;
     } else {
-      category = 'give';
-      reasons.push('Below thresholds');
+      reasons.push(`$${value.toFixed(0)}<$${minValue}`);
+    }
+    
+    // Drinking window adjustments  
+    if (drinkStatus === 'peak') {
+      keepScore += 10;
+      reasons.push('Peak window');
+    }
+    
+    // KEEP if score high enough
+    if (keepScore >= 30) {
+      w._reasons = reasons;
+      categorized.keep.push(w);
+      return;
+    }
+    
+    // SELL vs GIVE
+    let sellScore = 0;
+    if (meetsSellThreshold(w, sellThreshold)) sellScore += 15;
+    if (score >= 88 && score <= 92) sellScore += 5;
+    if (bottles >= 3 && value >= 25) { sellScore += 5; reasons.push('Bulk lot'); }
+    
+    if (sellScore >= 15 && meetsSellThreshold(w, sellThreshold)) {
+      if (mode === 'net') reasons.push(`~$${Math.round(getExpectedNetIncome(w))} net`);
+      w._reasons = reasons;
+      categorized.sell.push(w);
+      return;
     }
     
     w._reasons = reasons;
-    categorized[category].push(w);
+    categorized.give.push(w);
   });
   
   updateStats();
