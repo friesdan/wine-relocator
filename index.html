@@ -11,10 +11,10 @@
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
   
   <!-- Landing / Import Section -->
-  <div id="import-section" class="min-h-screen flex items-center justify-center p-4">
+  <div id="import-section" class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
     <div class="max-w-lg w-full">
       <div class="text-center mb-8">
         <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">🍷 Wine Relocator</h1>
@@ -22,6 +22,20 @@
       </div>
       
       <div class="glassmorphism rounded-2xl p-8 border border-white/20">
+        
+        <!-- Moving From/To -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-purple-300 text-sm mb-1">Moving from</label>
+            <input type="text" id="move-from" placeholder="e.g., Austin, TX" 
+              class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-400 focus:outline-none focus:border-purple-400">
+          </div>
+          <div>
+            <label class="block text-purple-300 text-sm mb-1">Moving to</label>
+            <input type="text" id="move-to" placeholder="e.g., San Francisco, CA" 
+              class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-purple-400 focus:outline-none focus:border-purple-400">
+          </div>
+        </div>
         
         <!-- Tab Buttons -->
         <div class="flex mb-6 bg-black/20 rounded-lg p-1">
@@ -36,7 +50,6 @@
         <!-- CellarTracker Login -->
         <div id="panel-cellartracker">
           <div class="flex items-center gap-2 mb-4">
-            <img src="https://www.cellartracker.com/favicon.ico" class="w-5 h-5" alt="">
             <span class="text-white font-medium">Connect to CellarTracker</span>
           </div>
           
@@ -75,7 +88,6 @@
             <div class="text-4xl mb-3">📁</div>
             <p class="text-white font-medium mb-1">Drop your CSV file here</p>
             <p class="text-sm text-purple-300">or click to browse</p>
-            <p class="text-xs text-purple-400 mt-3">Supports CellarTracker, Vivino, and generic CSV formats</p>
           </div>
         </div>
         
@@ -93,17 +105,320 @@
     </div>
   </div>
   
-  <!-- Main App Section (hidden until data loaded) -->
+  <!-- Main App Section -->
   <div id="app-section" class="hidden">
-    <!-- Will be populated with the main app UI -->
+    
+    <!-- Sticky Header -->
+    <div class="sticky top-0 z-50 bg-gradient-to-r from-slate-800 to-slate-900 shadow-2xl">
+      <div class="max-w-6xl mx-auto p-3">
+        <!-- Row 1: Title and Summary -->
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold text-white">🍷 Wine Relocator</h1>
+            <span id="header-move-info" class="text-purple-300 text-sm"></span>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right">
+              <div class="text-xs text-slate-400">Collection</div>
+              <div class="text-sm font-bold text-white"><span id="header-bottles">0</span> bottles · <span id="header-value">$0</span></div>
+            </div>
+            <button onclick="location.reload()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm">
+              ← Start Over
+            </button>
+          </div>
+        </div>
+        
+        <!-- Row 2: Cost Cards -->
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Transport Cost Card -->
+          <div class="p-3 bg-emerald-600/30 backdrop-blur rounded-xl border border-emerald-500/40">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs text-emerald-300 font-medium uppercase tracking-wide">Transport Cost</div>
+                <div class="text-xl font-bold text-white" id="header-transport-cost">$0</div>
+                <div class="text-xs text-emerald-300" id="header-transport-per-bottle">$0/bottle</div>
+              </div>
+              <select id="header-transport-method" onchange="syncTransportMethod(this.value)" class="text-xs bg-emerald-700/50 border-0 rounded px-2 py-1 text-white">
+                <option value="professional">Professional</option>
+                <option value="freight">Freight/LTL</option>
+                <option value="truck">Rental Truck</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Sell Recovery Card -->
+          <div class="p-3 bg-amber-600/30 backdrop-blur rounded-xl border border-amber-500/40">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs text-amber-300 font-medium uppercase tracking-wide">Expected Recovery</div>
+                <div class="text-xl font-bold text-emerald-400" id="header-sell-recovery">$0</div>
+                <div class="text-xs text-amber-300" id="header-recovery-rate">0% of retail</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-slate-400">Retail value</div>
+                <div class="text-sm font-medium text-slate-300" id="header-sell-retail">$0</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Net Cost Card -->
+          <div class="p-3 bg-violet-600/30 backdrop-blur rounded-xl border border-violet-500/40">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-xs text-violet-300 font-medium uppercase tracking-wide">Net Cost</div>
+                <div class="text-xl font-bold text-white" id="header-net-cost">$0</div>
+                <div class="text-xs text-violet-300">Transport + losses - sales</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-pink-300 font-medium">🍷 Social Capital</div>
+                <div class="text-sm font-bold text-pink-400" id="header-social-capital">$0</div>
+                <div class="text-xs text-slate-400">gifted value</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto p-4">
+      
+      <!-- Controls -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        
+        <!-- Master Score Threshold -->
+        <div class="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex-shrink-0">
+              <span class="font-semibold text-purple-900">🎯 Master Score Threshold</span>
+              <div class="text-sm text-purple-600">Sets baseline for all regions</div>
+            </div>
+            <div class="flex-1 max-w-xs">
+              <div class="flex items-center gap-3">
+                <input type="range" id="master-score" min="0" max="97" step="1" value="91" class="flex-1" oninput="updateMasterScoreLabel(); applyMasterScore()">
+                <span id="master-score-label" class="text-lg font-bold text-purple-900 w-16 text-center">91+</span>
+              </div>
+              <div class="flex justify-between text-xs text-purple-400 mt-1"><span>All</span><span>97+</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Value Threshold -->
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Minimum transport value: <span id="min-value-label" class="font-bold">$25</span></label>
+            <input type="range" id="min-value" min="1" max="200" step="1" value="25" class="w-full" oninput="updateMinValueLabel(); recalculate()">
+            <div class="flex justify-between text-xs text-gray-400 mt-1"><span>$1</span><span>$200</span></div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sell threshold: <span id="sell-label" class="font-bold">$20</span></label>
+            <input type="range" id="sell-threshold" min="1" max="100" step="1" value="20" class="w-full" oninput="updateSellLabel(); recalculate()">
+            <div class="text-xs text-gray-500 mt-1">Below this value → Give away</div>
+          </div>
+        </div>
+        
+        <!-- Regional Balance -->
+        <div class="mb-6 p-4 bg-indigo-50/50 rounded-lg border border-indigo-100">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-indigo-800">⚖️ Regional Balance</span>
+              <span class="text-xs text-indigo-500">(overrides master score threshold)</span>
+            </div>
+            <span class="text-xs text-indigo-600" id="balance-label">0%</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-indigo-500">Original mix</span>
+            <input type="range" id="balance-slider" min="0" max="100" step="5" value="0" class="flex-1" oninput="applyRegionalBalance()">
+            <span class="text-xs text-indigo-500">Even distribution</span>
+          </div>
+        </div>
+        
+        <!-- Regional Score Thresholds -->
+        <h3 class="text-sm font-semibold text-gray-700 mb-1">📍 Regional score thresholds:</h3>
+        <p class="text-xs text-gray-500 mb-2">Fine-tune by region</p>
+        <div class="flex justify-end text-xs text-gray-400 mb-1 pr-1 gap-2">
+          <span class="w-16 text-right">bottles</span>
+          <span class="w-10 text-right">% of transport</span>
+        </div>
+        <div id="regional-sliders" class="grid md:grid-cols-2 gap-2 mb-6">
+          <!-- Will be populated dynamically based on data -->
+        </div>
+        
+        <!-- Override Checkboxes -->
+        <div class="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <h4 class="text-sm font-medium text-yellow-800 mb-2">✨ Always keep (override score threshold):</h4>
+          <div class="flex flex-wrap gap-4 text-sm">
+            <label class="flex items-center gap-1"><input type="checkbox" id="keep-rare" onchange="recalculate()"> <span>Rare/cult wines</span></label>
+            <label class="flex items-center gap-1"><input type="checkbox" id="keep-aged" onchange="recalculate()"> <span>15+ years old</span></label>
+            <label class="flex items-center gap-1"><input type="checkbox" id="keep-96" checked onchange="recalculate()"> <span>96+ points</span></label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Results Tabs -->
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+        <div class="flex border-b">
+          <button class="tab-btn flex-1 py-3 px-4 text-center font-medium bg-green-50 text-green-700 border-b-2 border-green-500" data-tab="keep" onclick="switchTab('keep')">
+            🚚 Transport (<span id="keep-num">0</span>)
+          </button>
+          <button class="tab-btn flex-1 py-3 px-4 text-center font-medium text-gray-500" data-tab="sell" onclick="switchTab('sell')">
+            💰 Sell (<span id="sell-num">0</span>)
+          </button>
+          <button class="tab-btn flex-1 py-3 px-4 text-center font-medium text-gray-500" data-tab="give" onclick="switchTab('give')">
+            🎁 Give (<span id="give-num">0</span>)
+          </button>
+        </div>
+        
+        <div class="p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div class="flex gap-2">
+              <select id="sort-by" class="p-1 border rounded text-sm" onchange="renderLists()">
+                <option value="score-desc">Score ↓</option>
+                <option value="value-desc">Value ↓</option>
+                <option value="vintage-asc">Oldest</option>
+                <option value="region">Region</option>
+              </select>
+              <select id="filter-region" class="p-1 border rounded text-sm" onchange="renderLists()">
+                <option value="all">All regions</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="exportListCSV()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded flex items-center gap-1">
+                <span>📄</span> CSV
+              </button>
+              <button onclick="exportListPDF()" class="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded flex items-center gap-1">
+                <span>📑</span> PDF
+              </button>
+            </div>
+          </div>
+          <div id="keep-list" class="tab-content space-y-2 max-h-96 overflow-y-auto"></div>
+          <div id="sell-list" class="tab-content space-y-2 max-h-96 overflow-y-auto hidden"></div>
+          <div id="give-list" class="tab-content space-y-2 max-h-96 overflow-y-auto hidden"></div>
+        </div>
+      </div>
+      
+      <!-- Transport Cost Calculator -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">🚚 Transport Cost Calculator</h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Transport Method</label>
+                <select id="transport-method" onchange="updateTransportCost()" class="w-full p-2 border rounded-lg">
+                  <option value="professional">Professional Wine Shipper</option>
+                  <option value="freight">Freight / LTL</option>
+                  <option value="truck">Rental Truck (DIY)</option>
+                  <option value="hybrid">Hybrid (Ship valuables, truck rest)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Season</label>
+                <select id="transport-season" onchange="updateTransportCost()" class="w-full p-2 border rounded-lg">
+                  <option value="winter">Winter (Nov-Mar) — Best rates</option>
+                  <option value="shoulder">Spring/Fall — +10%</option>
+                  <option value="summer">Summer (Jun-Aug) — +25%</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Level</label>
+                <select id="transport-insurance" onchange="updateTransportCost()" class="w-full p-2 border rounded-lg">
+                  <option value="standard">Standard (1% of value)</option>
+                  <option value="full">Full Coverage (2% of value)</option>
+                  <option value="basic">Basic (0.5% of value)</option>
+                </select>
+              </div>
+              <div id="hybrid-options" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ship wines valued $<span id="hybrid-threshold-label">150</span>+</label>
+                <input type="range" id="hybrid-threshold" min="50" max="500" step="25" value="150" class="w-full" oninput="document.getElementById('hybrid-threshold-label').textContent=this.value; updateTransportCost();">
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="bg-gray-50 rounded-lg p-4">
+              <div class="text-sm space-y-1 mb-3" id="transport-breakdown"></div>
+              <div class="border-t pt-3 mt-3">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold text-lg">Total Estimate</span>
+                  <span class="font-bold text-2xl text-green-700" id="transport-total">$0</span>
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                  Per bottle: <span id="transport-per-bottle" class="font-medium">$0</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-3 text-xs text-gray-500" id="method-details"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sell Strategy -->
+      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-bold text-gray-900 mb-4">💰 Sell Strategy</h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  🎁 Give away: &lt;$<span id="giveaway-threshold-label">20</span>
+                </label>
+                <p class="text-xs text-gray-500">Linked to main sell threshold</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  📦 Bulk buyer: $<span id="giveaway-threshold-label2">20</span> – $<span id="bulk-threshold-label">75</span>
+                </label>
+                <input type="range" id="bulk-threshold" min="30" max="150" step="5" value="75" class="w-full" oninput="document.getElementById('bulk-threshold-label').textContent=this.value; updateSellStrategy();">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  🏪 Consignment: $<span id="bulk-threshold-label2">75</span> – $<span id="consign-threshold-label">175</span>
+                </label>
+                <input type="range" id="consign-threshold" min="75" max="400" step="25" value="175" class="w-full" oninput="document.getElementById('consign-threshold-label').textContent=this.value; updateSellStrategy();">
+              </div>
+              <div>
+                <p class="text-sm font-medium text-gray-700">🏛️ Auction: $<span id="consign-threshold-label2">175</span>+</p>
+              </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t">
+              <div class="text-sm text-gray-600 space-y-1" id="sell-channel-breakdown"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="bg-green-50 rounded-lg p-4">
+              <h4 class="font-medium text-green-900 mb-2">Expected Recovery</h4>
+              <div class="text-sm space-y-1" id="sell-recovery-breakdown"></div>
+              <div class="border-t border-green-200 pt-3 mt-3">
+                <div class="flex justify-between items-center">
+                  <span class="font-bold">Total Expected Cash</span>
+                  <span class="font-bold text-xl text-green-700" id="sell-total-recovery">$0</span>
+                </div>
+                <div class="text-sm text-green-600" id="sell-recovery-rate">0% of retail</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
   </div>
 
 <script>
-// Wine data storage
+// ─── Data Storage ───────────────────────────────────────────────
 let wines = [];
 let categorized = { keep: [], sell: [], give: [] };
+let currentTab = 'keep';
+let moveFrom = '';
+let moveTo = '';
+let topRegions = [];
 
-// Tab switching
+// ─── Import Tab Switching ───────────────────────────────────────
 function switchImportTab(tab) {
   document.getElementById('panel-cellartracker').classList.toggle('hidden', tab !== 'cellartracker');
   document.getElementById('panel-csv').classList.toggle('hidden', tab !== 'csv');
@@ -111,7 +426,7 @@ function switchImportTab(tab) {
   document.getElementById('tab-csv').className = `flex-1 py-2 px-4 rounded-md text-sm font-medium ${tab === 'csv' ? 'bg-purple-600 text-white' : 'text-purple-300 hover:text-white'}`;
 }
 
-// CellarTracker fetch
+// ─── CellarTracker Fetch ────────────────────────────────────────
 async function fetchCellarTracker(e) {
   e.preventDefault();
   
@@ -135,16 +450,16 @@ async function fetchCellarTracker(e) {
     
     const result = await response.json();
     
-    if (result.error) {
-      throw new Error(result.error);
-    }
+    if (result.error) throw new Error(result.error);
     
     wines = parseTabData(result.data);
     
     if (wines.length === 0) {
-      throw new Error('No wines found in your cellar. Make sure you have wines added to CellarTracker.');
+      throw new Error('No wines found in your cellar.');
     }
     
+    moveFrom = document.getElementById('move-from').value || 'Origin';
+    moveTo = document.getElementById('move-to').value || 'Destination';
     showApp();
     
   } catch (err) {
@@ -157,14 +472,13 @@ async function fetchCellarTracker(e) {
   }
 }
 
-// Parse CellarTracker tab-delimited data
+// ─── Parse CellarTracker Tab Data ───────────────────────────────
 function parseTabData(text) {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
   
   const headers = lines[0].split('\t').map(h => h.toLowerCase().trim());
   
-  // Find column indices
   const cols = {
     wine: findCol(headers, ['wine', 'winename']),
     vintage: findCol(headers, ['vintage']),
@@ -172,12 +486,10 @@ function parseTabData(text) {
     country: findCol(headers, ['country']),
     varietal: findCol(headers, ['varietal', 'mastervariety', 'variety']),
     color: findCol(headers, ['color', 'type']),
-    category: findCol(headers, ['category']),
-    score: findCol(headers, ['ct', 'score', 'my score']),
+    score: findCol(headers, ['ct', 'score']),
     price: findCol(headers, ['price', 'valuation', 'avgprice']),
     quantity: findCol(headers, ['quantity', 'pending']),
     location: findCol(headers, ['location']),
-    bin: findCol(headers, ['bin']),
     size: findCol(headers, ['size']),
     beginConsume: findCol(headers, ['beginconsume', 'begin']),
     endConsume: findCol(headers, ['endconsume', 'end']),
@@ -192,91 +504,18 @@ function parseTabData(text) {
     const wine = {
       name: getVal(values, cols.wine) || 'Unknown',
       vintage: getVal(values, cols.vintage) || '',
-      region: getVal(values, cols.locale) || getVal(values, cols.country) || 'Unknown',
-      country: getVal(values, cols.country) || '',
+      region: getVal(values, cols.locale) || getVal(values, cols.country) || 'Other',
       variety: getVal(values, cols.varietal) || '',
-      type: getVal(values, cols.color) || getVal(values, cols.category) || '',
+      type: getVal(values, cols.color) || '',
       score: parseFloat(getVal(values, cols.score)) || 0,
       price: parseFloat(String(getVal(values, cols.price)).replace(/[$,]/g, '')) || 0,
       quantity: parseInt(getVal(values, cols.quantity)) || 1,
-      location: [getVal(values, cols.location), getVal(values, cols.bin)].filter(Boolean).join(' / '),
       size: getVal(values, cols.size) || '750ml',
       drinkBegin: getVal(values, cols.beginConsume) || '',
       drinkEnd: getVal(values, cols.endConsume) || ''
     };
     
     if (wine.name && wine.name !== 'Unknown') {
-      result.push(wine);
-    }
-  }
-  
-  return result;
-}
-
-// File handling
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-
-dropZone?.addEventListener('click', () => fileInput.click());
-dropZone?.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-purple-400', 'bg-purple-500/10'); });
-dropZone?.addEventListener('dragleave', () => dropZone.classList.remove('border-purple-400', 'bg-purple-500/10'));
-dropZone?.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('border-purple-400', 'bg-purple-500/10');
-  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
-fileInput?.addEventListener('change', e => {
-  if (e.target.files.length) handleFile(e.target.files[0]);
-});
-
-function handleFile(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
-    // Try tab-delimited first (CellarTracker), then CSV
-    wines = text.includes('\t') ? parseTabData(text) : parseCSV(text);
-    if (wines.length > 0) {
-      showApp();
-    } else {
-      alert('Could not parse any wines from the file. Please check the format.');
-    }
-  };
-  reader.readAsText(file);
-}
-
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  
-  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
-  
-  const colMap = {
-    wine: findCol(headers, ['wine', 'wine name', 'name', 'winename']),
-    vintage: findCol(headers, ['vintage', 'year']),
-    region: findCol(headers, ['region', 'appellation', 'locale']),
-    country: findCol(headers, ['country']),
-    variety: findCol(headers, ['varietal', 'variety', 'grape']),
-    score: findCol(headers, ['score', 'ct', 'rating', 'points']),
-    price: findCol(headers, ['price', 'cost', 'valuation', 'value']),
-    quantity: findCol(headers, ['quantity', 'qty', 'bottles']),
-  };
-  
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const values = parseCSVLine(lines[i]);
-    
-    const wine = {
-      name: getVal(values, colMap.wine) || 'Unknown Wine',
-      vintage: getVal(values, colMap.vintage) || '',
-      region: getVal(values, colMap.region) || getVal(values, colMap.country) || 'Unknown',
-      variety: getVal(values, colMap.variety) || '',
-      score: parseFloat(getVal(values, colMap.score)) || 0,
-      price: parseFloat(String(getVal(values, colMap.price)).replace(/[$,]/g, '')) || 0,
-      quantity: parseInt(getVal(values, colMap.quantity)) || 1,
-    };
-    
-    if (wine.name && wine.name !== 'Unknown Wine') {
       result.push(wine);
     }
   }
@@ -296,6 +535,77 @@ function getVal(values, idx) {
   return idx >= 0 && idx < values.length ? values[idx]?.trim() || '' : '';
 }
 
+// ─── File Upload Handling ───────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone?.addEventListener('click', () => fileInput.click());
+dropZone?.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-purple-400', 'bg-purple-500/10'); });
+dropZone?.addEventListener('dragleave', () => dropZone.classList.remove('border-purple-400', 'bg-purple-500/10'));
+dropZone?.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('border-purple-400', 'bg-purple-500/10');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput?.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    wines = text.includes('\t') ? parseTabData(text) : parseCSV(text);
+    if (wines.length > 0) {
+      moveFrom = document.getElementById('move-from').value || 'Origin';
+      moveTo = document.getElementById('move-to').value || 'Destination';
+      showApp();
+    } else {
+      alert('Could not parse any wines from the file.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+  
+  const colMap = {
+    wine: findCol(headers, ['wine', 'wine name', 'name']),
+    vintage: findCol(headers, ['vintage', 'year']),
+    region: findCol(headers, ['region', 'appellation', 'locale']),
+    variety: findCol(headers, ['varietal', 'variety']),
+    score: findCol(headers, ['score', 'ct', 'rating', 'points']),
+    price: findCol(headers, ['price', 'cost', 'value']),
+    quantity: findCol(headers, ['quantity', 'qty', 'bottles']),
+  };
+  
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseCSVLine(lines[i]);
+    
+    const wine = {
+      name: getVal(values, colMap.wine) || 'Unknown',
+      vintage: getVal(values, colMap.vintage) || '',
+      region: getVal(values, colMap.region) || 'Other',
+      variety: getVal(values, colMap.variety) || '',
+      score: parseFloat(getVal(values, colMap.score)) || 0,
+      price: parseFloat(String(getVal(values, colMap.price)).replace(/[$,]/g, '')) || 0,
+      quantity: parseInt(getVal(values, colMap.quantity)) || 1,
+    };
+    
+    if (wine.name && wine.name !== 'Unknown') {
+      result.push(wine);
+    }
+  }
+  
+  return result;
+}
+
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -304,12 +614,8 @@ function parseCSVLine(line) {
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
     } else if (char === ',' && !inQuotes) {
       result.push(current);
       current = '';
@@ -321,119 +627,595 @@ function parseCSVLine(line) {
   return result.map(s => s.replace(/^"|"$/g, ''));
 }
 
+// ─── Demo Data ──────────────────────────────────────────────────
 function loadDemoData() {
   wines = [
-    { name: "Château Margaux", vintage: "2015", region: "Bordeaux", variety: "Cabernet Sauvignon", score: 97, price: 850, quantity: 2, drinkBegin: "2025", drinkEnd: "2050" },
+    { name: "Château Margaux Premier Grand Cru", vintage: "2015", region: "Bordeaux", variety: "Cabernet Sauvignon", score: 97, price: 850, quantity: 2, drinkBegin: "2025", drinkEnd: "2050" },
     { name: "Opus One", vintage: "2018", region: "California", variety: "Cabernet Sauvignon", score: 95, price: 400, quantity: 3, drinkBegin: "2023", drinkEnd: "2040" },
-    { name: "Dom Pérignon", vintage: "2012", region: "Champagne", variety: "Chardonnay/Pinot Noir", score: 96, price: 200, quantity: 6, drinkBegin: "2022", drinkEnd: "2035" },
+    { name: "Dom Pérignon", vintage: "2012", region: "Champagne", variety: "Chardonnay", score: 96, price: 200, quantity: 6, drinkBegin: "2022", drinkEnd: "2035" },
     { name: "Penfolds Grange", vintage: "2017", region: "South Australia", variety: "Shiraz", score: 98, price: 750, quantity: 1, drinkBegin: "2027", drinkEnd: "2060" },
     { name: "Cloudy Bay Sauvignon Blanc", vintage: "2022", region: "New Zealand", variety: "Sauvignon Blanc", score: 89, price: 25, quantity: 12, drinkBegin: "2023", drinkEnd: "2025" },
-    { name: "Caymus Cabernet", vintage: "2019", region: "California", variety: "Cabernet Sauvignon", score: 91, price: 90, quantity: 4, drinkBegin: "2024", drinkEnd: "2035" },
-    { name: "La Crema Pinot Noir", vintage: "2020", region: "California", variety: "Pinot Noir", score: 88, price: 22, quantity: 6, drinkBegin: "2022", drinkEnd: "2028" },
+    { name: "Caymus Special Selection", vintage: "2019", region: "California", variety: "Cabernet Sauvignon", score: 94, price: 180, quantity: 4, drinkBegin: "2024", drinkEnd: "2040" },
+    { name: "La Crema Pinot Noir Sonoma", vintage: "2020", region: "California", variety: "Pinot Noir", score: 88, price: 22, quantity: 6, drinkBegin: "2022", drinkEnd: "2028" },
     { name: "Whispering Angel Rosé", vintage: "2023", region: "Provence", variety: "Grenache", score: 87, price: 20, quantity: 4, drinkBegin: "2023", drinkEnd: "2025" },
-    { name: "Barolo Giacomo Conterno", vintage: "2016", region: "Piedmont", variety: "Nebbiolo", score: 96, price: 300, quantity: 2, drinkBegin: "2026", drinkEnd: "2050" },
+    { name: "Barolo Giacomo Conterno Monfortino", vintage: "2016", region: "Piedmont", variety: "Nebbiolo", score: 96, price: 500, quantity: 2, drinkBegin: "2026", drinkEnd: "2055" },
     { name: "Yellow Tail Shiraz", vintage: "2022", region: "Australia", variety: "Shiraz", score: 82, price: 8, quantity: 3, drinkBegin: "2022", drinkEnd: "2024" },
+    { name: "Domaine Leroy Richebourg", vintage: "2018", region: "Burgundy", variety: "Pinot Noir", score: 98, price: 3500, quantity: 1, drinkBegin: "2028", drinkEnd: "2060" },
+    { name: "Krug Grande Cuvée", vintage: "NV", region: "Champagne", variety: "Blend", score: 95, price: 180, quantity: 3, drinkBegin: "2023", drinkEnd: "2030" },
+    { name: "Quilceda Creek Cabernet", vintage: "2019", region: "Washington", variety: "Cabernet Sauvignon", score: 97, price: 250, quantity: 2, drinkBegin: "2025", drinkEnd: "2045" },
+    { name: "Dominus Estate", vintage: "2017", region: "California", variety: "Cabernet Sauvignon", score: 96, price: 300, quantity: 2, drinkBegin: "2024", drinkEnd: "2042" },
+    { name: "Guigal Côte Rôtie La Landonne", vintage: "2015", region: "Rhône", variety: "Syrah", score: 97, price: 400, quantity: 1, drinkBegin: "2025", drinkEnd: "2050" },
+    { name: "Willamette Valley Pinot Noir", vintage: "2021", region: "Oregon", variety: "Pinot Noir", score: 90, price: 35, quantity: 6, drinkBegin: "2023", drinkEnd: "2030" },
+    { name: "Gaja Barbaresco", vintage: "2018", region: "Piedmont", variety: "Nebbiolo", score: 95, price: 280, quantity: 2, drinkBegin: "2026", drinkEnd: "2045" },
+    { name: "Sine Qua Non Grenache", vintage: "2019", region: "California", variety: "Grenache", score: 98, price: 450, quantity: 1, drinkBegin: "2024", drinkEnd: "2040" },
+    { name: "Barefoot Chardonnay", vintage: "2023", region: "California", variety: "Chardonnay", score: 80, price: 6, quantity: 2, drinkBegin: "2023", drinkEnd: "2024" },
+    { name: "Château Palmer", vintage: "2016", region: "Bordeaux", variety: "Cabernet Blend", score: 96, price: 350, quantity: 3, drinkBegin: "2026", drinkEnd: "2050" },
   ];
+  moveFrom = 'Austin, TX';
+  moveTo = 'San Francisco, CA';
   showApp();
 }
 
+// ─── Show Main App ──────────────────────────────────────────────
 function showApp() {
   document.getElementById('import-section').classList.add('hidden');
   document.getElementById('app-section').classList.remove('hidden');
-  renderApp();
+  
+  // Update header
+  document.getElementById('header-move-info').textContent = `${moveFrom} → ${moveTo}`;
+  
+  // Calculate top regions
+  const regionCounts = {};
+  wines.forEach(w => {
+    const r = w.region || 'Other';
+    if (!regionCounts[r]) regionCounts[r] = 0;
+    regionCounts[r] += w.quantity || 1;
+  });
+  topRegions = Object.entries(regionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([r]) => r);
+  topRegions.push('Other');
+  
+  // Build regional sliders
+  buildRegionalSliders();
+  
+  // Populate region filter
+  const regions = [...new Set(wines.map(w => w.region || 'Other'))].sort();
+  const filter = document.getElementById('filter-region');
+  filter.innerHTML = '<option value="all">All regions</option>';
+  regions.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = r;
+    filter.appendChild(opt);
+  });
+  
+  // Initialize
+  updateMasterScoreLabel();
+  applyMasterScore();
+  updateSellLabel();
+  updateMinValueLabel();
+  recalculate();
+  updateTransportCost();
 }
 
-function renderApp() {
-  const totalBottles = wines.reduce((s, w) => s + (w.quantity || 1), 0);
-  const totalValue = wines.reduce((s, w) => s + (w.price || 0) * (w.quantity || 1), 0);
-  const avgScore = wines.length > 0 ? (wines.reduce((s, w) => s + (w.score || 0), 0) / wines.length).toFixed(1) : 0;
+// ─── Build Regional Sliders ─────────────────────────────────────
+function buildRegionalSliders() {
+  const container = document.getElementById('regional-sliders');
+  const colors = ['orange', 'purple', 'pink', 'blue', 'red', 'amber', 'indigo', 'green', 'gray'];
   
-  // Group by region
-  const byRegion = {};
-  wines.forEach(w => {
-    const r = w.region || 'Unknown';
-    if (!byRegion[r]) byRegion[r] = { count: 0, bottles: 0, value: 0 };
-    byRegion[r].count++;
-    byRegion[r].bottles += w.quantity || 1;
-    byRegion[r].value += (w.price || 0) * (w.quantity || 1);
+  let html = '';
+  topRegions.forEach((region, i) => {
+    const key = region.toLowerCase().replace(/[^a-z]/g, '');
+    const color = colors[i % colors.length];
+    html += `
+      <div class="p-2 bg-${color}-50 rounded flex items-center gap-2">
+        <span class="w-24 text-sm font-medium text-${color}-900">${region}</span>
+        <input type="range" id="${key}-score" min="0" max="97" step="1" value="91" class="flex-1" 
+          oninput="updateRegionLabel('${key}'); balanceBaseThresholds=null; recalculate()">
+        <span class="text-xs text-${color}-700 w-8 text-right" id="${key}-label">91+</span>
+        <span class="text-xs text-${color}-600 w-16 text-right" id="${key}-count">0 btl</span>
+        <span class="text-xs text-${color}-400 w-10 text-right" id="${key}-pct">0%</span>
+      </div>`;
   });
-  const topRegions = Object.entries(byRegion).sort((a, b) => b[1].bottles - a[1].bottles).slice(0, 8);
+  container.innerHTML = html;
+}
+
+// ─── Helper Functions ───────────────────────────────────────────
+function getRegion(w) { return w.region || 'Other'; }
+function getValue(w) { return w.price || 0; }
+function getBottleCount(w) { return w.quantity || 1; }
+
+function getRegionKey(region) {
+  return region.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+// ─── Recalculate Categorization ─────────────────────────────────
+function recalculate() {
+  const minValue = parseInt(document.getElementById('min-value').value);
+  const sellThreshold = parseInt(document.getElementById('sell-threshold').value);
+  const keep96 = document.getElementById('keep-96').checked;
+  const keepRare = document.getElementById('keep-rare').checked;
+  const keepAged = document.getElementById('keep-aged').checked;
   
-  document.getElementById('app-section').innerHTML = `
-    <div class="max-w-6xl mx-auto p-4">
-      <!-- Header -->
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h1 class="text-2xl font-bold text-white">🍷 Wine Relocator</h1>
-          <p class="text-purple-300">${wines.length} wines · ${totalBottles} bottles · $${Math.round(totalValue).toLocaleString()} value</p>
+  // Get regional thresholds
+  const thresholds = {};
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    const el = document.getElementById(key + '-score');
+    thresholds[r] = el ? parseInt(el.value) : 91;
+  });
+  
+  categorized = { keep: [], sell: [], give: [] };
+  
+  wines.forEach(w => {
+    const value = getValue(w);
+    const score = w.score || 0;
+    const region = getRegion(w);
+    const threshold = thresholds[region] || thresholds['Other'] || 91;
+    const vintage = parseInt(w.vintage) || 2020;
+    const age = 2025 - vintage;
+    
+    let category = 'give';
+    let reasons = [];
+    
+    // Check overrides first
+    if (keep96 && score >= 96) {
+      category = 'keep';
+      reasons.push('96+ pts');
+    } else if (keepAged && age >= 15) {
+      category = 'keep';
+      reasons.push('15+ yrs');
+    } else if (score >= threshold && value >= minValue) {
+      category = 'keep';
+      reasons.push(`${threshold}+ pts, $${minValue}+ value`);
+    } else if (value >= sellThreshold) {
+      category = 'sell';
+      reasons.push(`Worth selling ($${value})`);
+    } else {
+      category = 'give';
+      reasons.push('Below thresholds');
+    }
+    
+    w._reasons = reasons;
+    categorized[category].push(w);
+  });
+  
+  updateStats();
+  updateRegionPercentages();
+  renderLists();
+  updateTransportCost();
+  updateSellStrategy();
+  updateNetCost();
+}
+
+function updateStats() {
+  const count = list => list.reduce((s, w) => s + getBottleCount(w), 0);
+  const value = list => list.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0);
+  
+  document.getElementById('keep-num').textContent = count(categorized.keep);
+  document.getElementById('sell-num').textContent = count(categorized.sell);
+  document.getElementById('give-num').textContent = count(categorized.give);
+  
+  document.getElementById('header-bottles').textContent = wines.reduce((s, w) => s + getBottleCount(w), 0);
+  document.getElementById('header-value').textContent = '$' + Math.round(wines.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0)).toLocaleString();
+}
+
+function updateRegionPercentages() {
+  const totalTransport = categorized.keep.reduce((s, w) => s + getBottleCount(w), 0);
+  
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    const countEl = document.getElementById(key + '-count');
+    const pctEl = document.getElementById(key + '-pct');
+    if (countEl && pctEl) {
+      const count = parseInt(countEl.textContent) || 0;
+      const pct = totalTransport > 0 ? Math.round((count / totalTransport) * 100) : 0;
+      pctEl.textContent = pct + '%';
+    }
+  });
+}
+
+// ─── Tab Switching ──────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const isActive = btn.dataset.tab === tab;
+    btn.className = `tab-btn flex-1 py-3 px-4 text-center font-medium ${isActive ? 
+      (tab === 'keep' ? 'bg-green-50 text-green-700 border-b-2 border-green-500' :
+       tab === 'sell' ? 'bg-amber-50 text-amber-700 border-b-2 border-amber-500' :
+       'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-500') : 
+      'text-gray-500'}`;
+  });
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.getElementById(tab + '-list').classList.remove('hidden');
+}
+
+// ─── Render Wine Lists ──────────────────────────────────────────
+function renderLists() {
+  const sortBy = document.getElementById('sort-by').value;
+  const filterRegion = document.getElementById('filter-region').value;
+  
+  const sortFn = {
+    'score-desc': (a, b) => (b.score || 0) - (a.score || 0),
+    'value-desc': (a, b) => getValue(b) - getValue(a),
+    'vintage-asc': (a, b) => (parseInt(a.vintage) || 0) - (parseInt(b.vintage) || 0),
+    'region': (a, b) => (a.region || '').localeCompare(b.region || '')
+  }[sortBy];
+  
+  ['keep', 'sell', 'give'].forEach(cat => {
+    let wines = [...categorized[cat]];
+    if (filterRegion !== 'all') {
+      wines = wines.filter(w => getRegion(w) === filterRegion);
+    }
+    if (sortFn) wines.sort(sortFn);
+    
+    const colors = { keep: 'green', sell: 'amber', give: 'indigo' };
+    const color = colors[cat];
+    
+    document.getElementById(cat + '-list').innerHTML = wines.map(w => `
+      <div class="p-3 bg-gray-50 rounded-lg border-l-4 border-${color}-400">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="font-medium text-gray-900">${w.vintage || ''} ${w.name}</div>
+            <div class="text-sm text-gray-500">${getRegion(w)} · ${w.variety || 'Wine'}</div>
+            <div class="text-xs text-${color}-600 mt-1">${(w._reasons || []).join(', ')}</div>
+          </div>
+          <div class="text-right">
+            <div class="font-medium">${w.score ? w.score + ' pts' : ''}</div>
+            <div class="text-sm text-gray-600">$${getValue(w)} × ${getBottleCount(w)}</div>
+          </div>
         </div>
-        <button onclick="location.reload()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm">
-          ← Start Over
-        </button>
       </div>
-      
-      <!-- Stats Summary -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="glassmorphism rounded-xl p-4 border border-white/20">
-          <div class="text-purple-300 text-sm">Total Wines</div>
-          <div class="text-2xl font-bold text-white">${wines.length}</div>
-        </div>
-        <div class="glassmorphism rounded-xl p-4 border border-white/20">
-          <div class="text-purple-300 text-sm">Total Bottles</div>
-          <div class="text-2xl font-bold text-white">${totalBottles}</div>
-        </div>
-        <div class="glassmorphism rounded-xl p-4 border border-white/20">
-          <div class="text-purple-300 text-sm">Collection Value</div>
-          <div class="text-2xl font-bold text-white">$${Math.round(totalValue).toLocaleString()}</div>
-        </div>
-        <div class="glassmorphism rounded-xl p-4 border border-white/20">
-          <div class="text-purple-300 text-sm">Average Score</div>
-          <div class="text-2xl font-bold text-white">${avgScore} pts</div>
-        </div>
-      </div>
-      
-      <!-- Region Breakdown -->
-      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 class="text-lg font-bold text-gray-900 mb-4">📍 By Region</h2>
-        <div class="grid md:grid-cols-2 gap-2">
-          ${topRegions.map(([region, data]) => `
-            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span class="font-medium">${region}</span>
-              <span class="text-sm text-gray-600">${data.bottles} btl · $${Math.round(data.value).toLocaleString()}</span>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-      
-      <!-- Wine List Preview -->
-      <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <h2 class="text-lg font-bold text-gray-900 mb-4">🍷 Your Collection</h2>
-        <div class="max-h-96 overflow-y-auto space-y-2">
-          ${wines.slice(0, 50).map(w => `
-            <div class="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
-              <div>
-                <div class="font-medium">${w.vintage} ${w.name}</div>
-                <div class="text-sm text-gray-500">${w.region} · ${w.variety || w.type || 'Wine'}</div>
-              </div>
-              <div class="text-right">
-                <div class="font-medium">${w.score ? w.score + ' pts' : ''}</div>
-                <div class="text-sm text-gray-500">$${w.price || 0} × ${w.quantity || 1}</div>
-              </div>
-            </div>
-          `).join('')}
-          ${wines.length > 50 ? `<div class="text-center text-gray-500 py-2">+ ${wines.length - 50} more wines...</div>` : ''}
-        </div>
-      </div>
-      
-      <!-- Coming Soon -->
-      <div class="glassmorphism rounded-xl p-8 border border-white/20 text-center">
-        <div class="text-4xl mb-4">🚧</div>
-        <h3 class="text-xl font-bold text-white mb-2">Decision Tools Coming Soon</h3>
-        <p class="text-purple-300 mb-4">Score thresholds, transport calculator, sell/give recommendations, and export tools.</p>
-        <p class="text-sm text-purple-400">Data imported successfully! Full decision engine coming next.</p>
-      </div>
-    </div>
-  `;
+    `).join('') || '<p class="text-gray-400 text-center py-8">No wines in this category</p>';
+  });
+}
+
+// ─── Master Score ───────────────────────────────────────────────
+function updateMasterScoreLabel() {
+  const score = parseInt(document.getElementById('master-score').value);
+  document.getElementById('master-score-label').textContent = score > 0 ? score + '+' : 'All';
+}
+
+function applyMasterScore() {
+  const score = parseInt(document.getElementById('master-score').value);
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    const el = document.getElementById(key + '-score');
+    if (el) {
+      el.value = score;
+      updateRegionLabel(key);
+    }
+  });
+  balanceBaseThresholds = null;
+  recalculate();
+}
+
+// ─── Regional Balance ───────────────────────────────────────────
+let balanceBaseThresholds = null;
+
+function applyRegionalBalance() {
+  const balancePct = parseInt(document.getElementById('balance-slider').value);
+  document.getElementById('balance-label').textContent = balancePct + '%';
+  
+  if (balancePct === 0) {
+    balanceBaseThresholds = null;
+    return;
+  }
+  
+  if (!balanceBaseThresholds) {
+    balanceBaseThresholds = {};
+    topRegions.forEach(r => {
+      const key = getRegionKey(r);
+      const el = document.getElementById(key + '-score');
+      balanceBaseThresholds[key] = el ? parseInt(el.value) : 91;
+    });
+  }
+  
+  // Count bottles per region at each threshold
+  const regionBottles = {};
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    regionBottles[key] = { byScore: {} };
+    for (let s = 0; s <= 98; s++) regionBottles[key].byScore[s] = 0;
+  });
+  
+  wines.forEach(w => {
+    const region = getRegion(w);
+    const key = topRegions.includes(region) ? getRegionKey(region) : 'other';
+    const score = w.score || 0;
+    const bottles = getBottleCount(w);
+    
+    for (let s = 0; s <= 98; s++) {
+      if (score >= s) regionBottles[key].byScore[s] += bottles;
+    }
+  });
+  
+  // Target = min regional max
+  const regionalMaxes = topRegions.map(r => regionBottles[getRegionKey(r)]?.byScore[0] || 0).filter(v => v > 0);
+  const targetPerRegion = Math.min(...regionalMaxes);
+  
+  // Find balanced thresholds
+  const balancedThresholds = {};
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    const maxBottles = regionBottles[key]?.byScore[0] || 0;
+    if (maxBottles === 0) {
+      balancedThresholds[key] = balanceBaseThresholds[key] || 0;
+      return;
+    }
+    
+    let bestThreshold = 0, bestDiff = Infinity;
+    for (let s = 0; s <= 98; s++) {
+      const bottles = regionBottles[key].byScore[s] || 0;
+      const diff = Math.abs(bottles - targetPerRegion);
+      if (diff < bestDiff) { bestDiff = diff; bestThreshold = s; }
+    }
+    balancedThresholds[key] = bestThreshold;
+  });
+  
+  // Apply interpolation
+  topRegions.forEach(r => {
+    const key = getRegionKey(r);
+    const base = balanceBaseThresholds[key] || 0;
+    const balanced = balancedThresholds[key];
+    const newThreshold = Math.round(base + (balanced - base) * (balancePct / 100));
+    
+    const el = document.getElementById(key + '-score');
+    if (el) {
+      el.value = Math.max(0, Math.min(97, newThreshold));
+      updateRegionLabel(key);
+    }
+  });
+  
+  recalculate();
+}
+
+function updateRegionLabel(regionKey) {
+  const score = parseInt(document.getElementById(regionKey + '-score')?.value) || 0;
+  const labelEl = document.getElementById(regionKey + '-label');
+  if (labelEl) labelEl.textContent = score > 0 ? score + '+' : 'All';
+  
+  // Find region name
+  const region = topRegions.find(r => getRegionKey(r) === regionKey) || 'Other';
+  
+  let count = 0;
+  wines.forEach(w => {
+    const wRegion = getRegion(w);
+    const isMatch = (regionKey === 'other') 
+      ? !topRegions.slice(0, -1).includes(wRegion)
+      : wRegion === region;
+    
+    if (isMatch && (score === 0 || (w.score || 0) >= score)) {
+      count += getBottleCount(w);
+    }
+  });
+  
+  const countEl = document.getElementById(regionKey + '-count');
+  if (countEl) countEl.textContent = count + ' btl';
+}
+
+function updateSellLabel() {
+  const val = document.getElementById('sell-threshold').value;
+  document.getElementById('sell-label').textContent = '$' + val;
+}
+
+function updateMinValueLabel() {
+  const val = document.getElementById('min-value').value;
+  document.getElementById('min-value-label').textContent = '$' + val;
+}
+
+// ─── Export Functions ───────────────────────────────────────────
+function getActiveList() {
+  const tabMap = { keep: 'Transport', sell: 'Sell', give: 'Give' };
+  return { list: categorized[currentTab] || [], name: tabMap[currentTab] };
+}
+
+function exportListCSV() {
+  const { list, name } = getActiveList();
+  if (list.length === 0) { alert('No wines in this list'); return; }
+  
+  const headers = ['Vintage', 'Wine Name', 'Region', 'Variety', 'Score', 'Value', 'Quantity'];
+  const rows = list.map(w => [w.vintage, w.name, getRegion(w), w.variety, w.score, getValue(w).toFixed(2), getBottleCount(w)]);
+  
+  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `wine-${name.toLowerCase()}-list.csv`; a.click();
+}
+
+function exportListPDF() {
+  const { list, name } = getActiveList();
+  if (list.length === 0) { alert('No wines in this list'); return; }
+  
+  const totalBottles = list.reduce((s, w) => s + getBottleCount(w), 0);
+  const totalValue = list.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0);
+  
+  let html = `<!DOCTYPE html><html><head><title>${name} List</title>
+    <style>body{font-family:Arial;padding:20px;font-size:11px}h1{font-size:18px}
+    .summary{margin-bottom:15px;color:#666}table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f5f5f5}</style></head>
+    <body><h1>🍷 ${name} List</h1>
+    <div class="summary">${totalBottles} bottles · $${Math.round(totalValue).toLocaleString()} · ${moveFrom} → ${moveTo}</div>
+    <table><tr><th>Vintage</th><th>Wine</th><th>Region</th><th>Score</th><th>Value</th><th>Qty</th></tr>`;
+  
+  list.forEach(w => {
+    html += `<tr><td>${w.vintage||''}</td><td>${w.name||''}</td><td>${getRegion(w)}</td>
+      <td>${w.score||''}</td><td>$${getValue(w).toFixed(0)}</td><td>${getBottleCount(w)}</td></tr>`;
+  });
+  
+  html += '</table></body></html>';
+  const win = window.open('', '_blank'); win.document.write(html); win.document.close(); win.print();
+}
+
+// ─── Transport Cost Calculator ──────────────────────────────────
+function updateTransportCost() {
+  const method = document.getElementById('transport-method').value;
+  const season = document.getElementById('transport-season').value;
+  const insurance = document.getElementById('transport-insurance').value;
+  const hybridThreshold = parseInt(document.getElementById('hybrid-threshold')?.value || 150);
+  
+  document.getElementById('hybrid-options').classList.toggle('hidden', method !== 'hybrid');
+  
+  const keepBottles = categorized.keep.reduce((s, w) => s + getBottleCount(w), 0);
+  const keepValue = categorized.keep.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0);
+  
+  const seasonMult = season === 'summer' ? 1.25 : (season === 'shoulder' ? 1.1 : 1.0);
+  const insuranceRate = insurance === 'full' ? 0.02 : (insurance === 'standard' ? 0.01 : 0.005);
+  const insuranceCost = keepValue * insuranceRate;
+  
+  let breakdown = [], total = 0, details = '';
+  
+  if (method === 'professional') {
+    let perBottle = keepBottles > 500 ? 18 : (keepBottles > 200 ? 22 : 26);
+    perBottle *= seasonMult;
+    const shippingCost = keepBottles * perBottle;
+    
+    breakdown.push({ label: `Shipping (${keepBottles} bottles)`, cost: shippingCost });
+    breakdown.push({ label: `Insurance (${insurance})`, cost: insuranceCost });
+    
+    total = shippingCost + insuranceCost;
+    details = `<strong>Professional Wine Shipper</strong><br>✓ Door-to-door, climate-controlled<br>✓ Professional packing included`;
+    
+  } else if (method === 'freight') {
+    const pallets = Math.ceil(keepBottles / 56);
+    const freightCost = pallets * 530 * seasonMult;
+    const packingCost = keepBottles * 2.50;
+    
+    breakdown.push({ label: `LTL Freight (${pallets} pallets)`, cost: freightCost });
+    breakdown.push({ label: 'Packing materials', cost: packingCost });
+    breakdown.push({ label: 'Insurance', cost: insuranceCost });
+    
+    total = freightCost + packingCost + insuranceCost;
+    details = `<strong>Freight/LTL</strong><br>✓ Economical for large collections<br>⚠ Requires self-packing`;
+    
+  } else if (method === 'truck') {
+    const truckCost = 2800 + 520 + 250; // Rental + fuel + hotels
+    const packingCost = keepBottles * 3.00;
+    
+    breakdown.push({ label: 'Truck rental + fuel + hotels', cost: truckCost });
+    breakdown.push({ label: 'Packing materials', cost: packingCost });
+    breakdown.push({ label: 'Insurance', cost: insuranceCost });
+    
+    total = truckCost + packingCost + insuranceCost;
+    details = `<strong>Rental Truck (DIY)</strong><br>✓ Full control<br>⚠ 3-day commitment`;
+    
+  } else if (method === 'hybrid') {
+    let shipBottles = 0, shipValue = 0, truckBottles = 0;
+    categorized.keep.forEach(w => {
+      if (getValue(w) >= hybridThreshold) { shipBottles += getBottleCount(w); shipValue += getValue(w) * getBottleCount(w); }
+      else { truckBottles += getBottleCount(w); }
+    });
+    
+    const shipCost = shipBottles * 24 * seasonMult;
+    const truckCost = 2000 + truckBottles * 2.50;
+    
+    breakdown.push({ label: `Ship high-value (${shipBottles} bottles)`, cost: shipCost });
+    breakdown.push({ label: `Truck rest (${truckBottles} bottles)`, cost: truckCost });
+    breakdown.push({ label: 'Insurance', cost: insuranceCost });
+    
+    total = shipCost + truckCost + insuranceCost;
+    details = `<strong>Hybrid</strong><br>🚚 Ship: ${shipBottles} bottles ($${Math.round(shipValue).toLocaleString()})<br>🚛 Truck: ${truckBottles} bottles`;
+  }
+  
+  document.getElementById('transport-breakdown').innerHTML = breakdown.map(b => 
+    `<div class="flex justify-between"><span class="text-gray-600">${b.label}</span><span class="font-mono">$${Math.round(b.cost).toLocaleString()}</span></div>`
+  ).join('');
+  document.getElementById('transport-total').textContent = '$' + Math.round(total).toLocaleString();
+  document.getElementById('transport-per-bottle').textContent = keepBottles > 0 ? '$' + (total / keepBottles).toFixed(2) : '$0';
+  document.getElementById('method-details').innerHTML = details;
+  
+  document.getElementById('header-transport-cost').textContent = '$' + Math.round(total).toLocaleString();
+  document.getElementById('header-transport-per-bottle').textContent = keepBottles > 0 ? '$' + (total / keepBottles).toFixed(2) + '/bottle' : '$0/bottle';
+}
+
+function syncTransportMethod(method) {
+  document.getElementById('transport-method').value = method;
+  document.getElementById('header-transport-method').value = method;
+  updateTransportCost();
+}
+
+// ─── Sell Strategy ──────────────────────────────────────────────
+function updateSellStrategy() {
+  const giveawayMax = parseInt(document.getElementById('sell-threshold').value);
+  const bulkMax = parseInt(document.getElementById('bulk-threshold').value);
+  const consignMax = parseInt(document.getElementById('consign-threshold').value);
+  
+  document.getElementById('giveaway-threshold-label').textContent = giveawayMax;
+  document.getElementById('giveaway-threshold-label2').textContent = giveawayMax;
+  document.getElementById('bulk-threshold-label2').textContent = bulkMax;
+  document.getElementById('consign-threshold-label2').textContent = consignMax;
+  
+  const channels = [
+    { key: 'auction', label: '🏛️ Auction', rate: 0.78 },
+    { key: 'consign', label: '🏪 Consignment', rate: 0.65 },
+    { key: 'bulk', label: '📦 Bulk Buyer', rate: 0.45 },
+    { key: 'giveaway', label: '🎁 Give Away', rate: 0 },
+  ];
+  
+  const sellWines = { auction: [], consign: [], bulk: [], giveaway: [] };
+  
+  categorized.sell.forEach(w => {
+    const val = getValue(w);
+    if (val >= consignMax) sellWines.auction.push(w);
+    else if (val >= bulkMax) sellWines.consign.push(w);
+    else sellWines.bulk.push(w);
+  });
+  categorized.give.forEach(w => sellWines.giveaway.push(w));
+  
+  let breakdownHtml = '', recoveryHtml = '', totalRetail = 0, totalCash = 0;
+  
+  channels.forEach(ch => {
+    const wines = sellWines[ch.key];
+    const bottles = wines.reduce((s, w) => s + getBottleCount(w), 0);
+    const retail = wines.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0);
+    const cash = retail * ch.rate;
+    totalRetail += retail;
+    totalCash += cash;
+    
+    breakdownHtml += `<div class="flex justify-between"><span class="text-gray-600">${ch.label}</span><span class="font-mono">${bottles} btl · $${Math.round(retail).toLocaleString()}</span></div>`;
+    if (ch.key !== 'giveaway') {
+      recoveryHtml += `<div class="flex justify-between"><span class="text-gray-600">${ch.label} (${Math.round(ch.rate * 100)}%)</span><span class="font-mono text-green-700">~$${Math.round(cash).toLocaleString()}</span></div>`;
+    }
+  });
+  
+  document.getElementById('sell-channel-breakdown').innerHTML = breakdownHtml;
+  document.getElementById('sell-recovery-breakdown').innerHTML = recoveryHtml;
+  document.getElementById('sell-total-recovery').textContent = '$' + Math.round(totalCash).toLocaleString();
+  const rate = totalRetail > 0 ? Math.round((totalCash / totalRetail) * 100) : 0;
+  document.getElementById('sell-recovery-rate').textContent = rate + '% of retail value';
+  
+  document.getElementById('header-sell-recovery').textContent = '$' + Math.round(totalCash).toLocaleString();
+  document.getElementById('header-recovery-rate').textContent = rate + '% of retail';
+  document.getElementById('header-sell-retail').textContent = '$' + Math.round(totalRetail).toLocaleString();
+}
+
+// ─── Net Cost ───────────────────────────────────────────────────
+function updateNetCost() {
+  const transportText = document.getElementById('header-transport-cost').textContent;
+  const transportCost = parseInt(transportText.replace(/[$,]/g, '')) || 0;
+  
+  const sellRecoveryText = document.getElementById('header-sell-recovery').textContent;
+  const sellRecovery = parseInt(sellRecoveryText.replace(/[$,]/g, '')) || 0;
+  
+  const sellRetailText = document.getElementById('header-sell-retail').textContent;
+  const sellRetail = parseInt(sellRetailText.replace(/[$,]/g, '')) || 0;
+  
+  const giveValue = categorized.give.reduce((s, w) => s + getValue(w) * getBottleCount(w), 0);
+  
+  const saleLoss = sellRetail - sellRecovery;
+  const netCost = transportCost + saleLoss + giveValue;
+  
+  document.getElementById('header-net-cost').textContent = '$' + Math.round(netCost).toLocaleString();
+  document.getElementById('header-social-capital').textContent = '$' + Math.round(giveValue).toLocaleString();
+  
+  const netEl = document.getElementById('header-net-cost');
+  if (netCost < 0) {
+    netEl.classList.remove('text-white'); netEl.classList.add('text-emerald-400');
+  } else {
+    netEl.classList.remove('text-emerald-400'); netEl.classList.add('text-white');
+  }
 }
 </script>
 </body>
