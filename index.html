@@ -234,8 +234,18 @@
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Sell threshold: <span id="sell-label" class="font-bold">$20</span></label>
+            <div class="flex gap-3 mb-2 text-xs">
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="sell-mode" value="value" checked onchange="updateSellLabel(); recalculate()">
+                <span>By Value</span>
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="sell-mode" value="net" onchange="updateSellLabel(); recalculate()">
+                <span>By Net Income</span>
+              </label>
+            </div>
             <input type="range" id="sell-threshold" min="1" max="100" step="1" value="20" class="w-full" oninput="updateSellLabel(); recalculate()">
-            <div class="text-xs text-gray-500 mt-1">Below this value → Give away</div>
+            <div class="text-xs text-gray-500 mt-1" id="sell-mode-hint">Below this value → Give away</div>
           </div>
         </div>
         
@@ -896,9 +906,14 @@ function recalculate() {
     } else if (score >= threshold && value >= minValue) {
       category = 'keep';
       reasons.push(`${threshold}+ pts, $${minValue}+ value`);
-    } else if (value >= sellThreshold) {
+    } else if (meetsSellThreshold(w, sellThreshold)) {
       category = 'sell';
-      reasons.push(`Worth selling ($${value})`);
+      const mode = getSellMode();
+      if (mode === 'net') {
+        reasons.push(`~$${Math.round(getExpectedNetIncome(w))} net`);
+      } else {
+        reasons.push(`$${value} value`);
+      }
     } else {
       category = 'give';
       reasons.push('Below thresholds');
@@ -1181,7 +1196,35 @@ function updateRegionLabel(regionKey) {
 
 function updateSellLabel() {
   const val = document.getElementById('sell-threshold').value;
+  const mode = document.querySelector('input[name="sell-mode"]:checked').value;
   document.getElementById('sell-label').textContent = '$' + val;
+  const hint = document.getElementById('sell-mode-hint');
+  if (mode === 'net') {
+    hint.textContent = 'Min expected cash in pocket → below = Give away';
+  } else {
+    hint.textContent = 'Below this bottle value → Give away';
+  }
+}
+
+function getSellMode() {
+  return document.querySelector('input[name="sell-mode"]:checked')?.value || 'value';
+}
+
+function getExpectedNetIncome(wine) {
+  // Estimate net income based on likely sell channel
+  const value = getValue(wine);
+  // Route to channel based on value, apply recovery rate
+  if (value >= 100) return value * 0.78;      // Auction
+  if (value >= 30) return value * 0.65;       // Consignment  
+  return value * 0.45;                         // Bulk
+}
+
+function meetsSellThreshold(wine, threshold) {
+  const mode = getSellMode();
+  if (mode === 'net') {
+    return getExpectedNetIncome(wine) >= threshold;
+  }
+  return getValue(wine) >= threshold;
 }
 
 function updateMinValueLabel() {
