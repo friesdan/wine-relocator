@@ -340,6 +340,12 @@
         </div>
       </div>
       
+      <!-- Decision Logic Panel -->
+      <div class="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+        <h3 class="text-sm font-semibold text-blue-800 mb-2">📋 Current Decision Logic</h3>
+        <div id="logic-explainer" class="text-sm text-blue-700 space-y-1"></div>
+      </div>
+      
       <!-- Results Tabs -->
       <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
         <div class="flex border-b">
@@ -1056,6 +1062,7 @@ function recalculate() {
   updateStats();
   updatePastPrimeCount();
   updateRegionPercentages();
+  updateLogicExplainer();
   renderLists();
   updateTransportCost();
   updateSellStrategy();
@@ -1092,6 +1099,59 @@ function updateStats() {
   
   document.getElementById('give-count').textContent = giveCount.toLocaleString();
   document.getElementById('give-value').textContent = '$' + Math.round(giveValue).toLocaleString();
+}
+
+function updateLogicExplainer() {
+  const minValue = parseInt(document.getElementById('min-value').value) || 30;
+  const sellThreshold = parseInt(document.getElementById('sell-threshold').value) || 20;
+  const keepRare = document.getElementById('keep-rare')?.checked;
+  const keepAged = document.getElementById('keep-aged')?.checked;
+  const keepAppreciated = document.getElementById('keep-appreciated')?.checked;
+  const keepLarge = document.getElementById('keep-large')?.checked;
+  const keep96 = document.getElementById('keep-96')?.checked;
+  
+  let html = '<div class="grid md:grid-cols-2 gap-4">';
+  
+  // Transport criteria
+  html += '<div><strong class="text-blue-900">🚚 Transport if:</strong><ul class="list-disc list-inside mt-1 space-y-0.5">';
+  html += `<li>Score meets regional threshold AND value ≥ $${minValue}</li>`;
+  
+  const overrides = [];
+  if (keep96) overrides.push('96+ points');
+  if (keepRare) overrides.push('rare/cult producer');
+  if (keepAged) overrides.push('15+ years old');
+  if (keepAppreciated) overrides.push('appreciated 30%+');
+  if (keepLarge) overrides.push('large format');
+  if (overrides.length) html += `<li>OR has: ${overrides.join(', ')}</li>`;
+  
+  html += '</ul></div>';
+  
+  // Regional thresholds
+  html += '<div><strong class="text-blue-900">📍 Regional thresholds:</strong><div class="mt-1 text-xs grid grid-cols-3 gap-1">';
+  regions.forEach(r => {
+    const el = document.getElementById(r + '-score');
+    const threshold = el ? parseInt(el.value) : 91;
+    html += `<span>${r}: <strong>${threshold}+</strong></span>`;
+  });
+  html += '</div></div>';
+  
+  html += '</div>';
+  
+  // Drinking window effects
+  html += '<div class="mt-2 pt-2 border-t border-blue-200">';
+  html += '<strong class="text-blue-900">🕐 Drinking window:</strong> ';
+  html += 'Past-prime wines (drink by &lt; 2026) forced to Sell/Give. Peak-window wines easier to keep.';
+  html += '</div>';
+  
+  // Sell vs Give
+  html += '<div class="mt-2 pt-2 border-t border-blue-200">';
+  const sellModeText = getSellMode() === 'net' 
+    ? `expected net income ≥ $${sellThreshold}` 
+    : `valued ≥ $${sellThreshold}`;
+  html += `<strong class="text-blue-900">💰 Sell vs Give:</strong> Wines with ${sellModeText} and 3+ bottles (bulk lot bonus) → Sell. Otherwise → Give away.`;
+  html += '</div>';
+  
+  document.getElementById('logic-explainer').innerHTML = html;
 }
 
 function updateRegionPercentages() {
